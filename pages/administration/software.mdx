@@ -1,0 +1,103 @@
+# Software
+
+Here you can manage the software installed on your device. You can install new software, update existing software, and remove software that you no longer need.
+
+## Add Software
+
+To add new software, go to the `Settings` tab next to the `Software` tab and click on `New Software`. You will be prompted to enter the name of the software and the version number & etc. Once you have entered the information, click on "Add Software" to add the software to your device.
+
+1. **Name**: The name of the software.
+2. **Domain**: You have to create a wildcard domain for the software. For example, if you want to visit the software at `http://mysoftware.example.com`, you have to create a wildcard domain for `*.example.com`.
+    After creating the wildcard domain, just enter the domain name without the wildcard. For example, `example.com`.
+3. **Database Type**: The type of database you want to use for the software. You can choose between `MySQL`, `PostgreSQL`, `SQLite`, and `MongoDB`.
+4. **Database File**: To upload a database file, first, you need to install the software somewhere else. After installation, you can export the database file and upload it here.
+5. **Database Credentials**: The database credentials for the software. You have to grant the database user to create a database and grant all privileges on the database.
+
+    MySQL:
+    ```sql
+    CREATE USER 'username'@'localhost' IDENTIFIED BY 'password';
+    GRANT ALL PRIVILEGES ON *.* TO 'username'@'localhost' WITH GRANT OPTION;
+    FLUSH PRIVILEGES;
+    ```
+6. **Description**: A brief description of the software, This will be displayed on the software pricing page.
+7. **Preview Image**: A preview image of the software. This will be displayed on the software pricing page.
+8. **Demo URL**: The URL of the demo of the software. This will be displayed on the software details page.
+9. **Documentation URL**: The URL of the documentation of the software.
+
+#### Default Admin Credentials
+
+You can set the default admin credentials for the software. If you don't set the default admin credentials, you have to create an system to create the admin user.
+<br/>
+For example, you have entered the following default admin credentials:
+| **Name**   |   **Value**  | **Replaceable** | **Type** |
+| :--------- | :----------- | :-------------- | :------- |
+| username   | admin        | REPLACE_USERNAME| string   |
+| password   | secret1234   | REPLACE_PASSWORD| hashed   |
+
+When you install the software, the `username` will be replaced with the username you entered and the `password` will be replaced with the password you entered.
+
+    MySQL:
+    ```sql
+    ... your other queries
+    INSERT INTO `users` (
+        `id`,
+        `name`,
+        `email`,
+        `username`,
+        `password`,
+        `email_verified_at`,
+        `remember_token`,
+        `created_at`,
+        `updated_at`
+    ) VALUES (
+        1,
+        'Admin',
+        'admin@mail.com',
+        'REPLACE_USERNAME',
+        'REPLACE_PASSWORD',
+        '2024-02-28 11:46:26',
+        NULL,
+        '2024-02-28 11:46:26',
+        '2024-02-28 11:46:26'
+    );
+    ... your other queries
+    ```
+This will create an admin user with the username `admin` and the password `secret1234`.
+
+
+#### Cron Jobs
+
+You can set the cron jobs for the software. Click on `+` to add a new cron job. You can set the following fields for the cron job:
+
+1. **Minute**: The minute when the cron job will run.
+2. **Hour**: The hour when the cron job will run.
+3. **Day**: The day when the cron job will run.
+4. **Month**: The month when the cron job will run.
+5. **Type**: The type of the cron job. You can choose between `Command` and `cURL`.
+6. **Command**: The command to run for the cron job.
+
+    cURL: <br/>
+    You just have to enter the path of the cron file. For example, if you have a cron file at `https://example.com/cron.php`, you just have to enter `/cron.php`.
+    ```bash
+    /cron.php
+    ```
+
+    Command: <br/>
+    ```Coming soon...```
+
+
+#### DNS Records
+
+You can set the DNS records for the software. Click on `+` to add a new DNS record. You can set the following fields for the DNS record:
+
+1. **Instruction**: Write the instruction for the DNS record. For example, `Add a new A record for the domain`.
+2. **Multiple**: If you want to add multiple DNS records, you can click on `+` to add a new DNS record.
+3. **Type**: The type of the DNS record. You can choose between `A`, `AAAA`, `CNAME`, `MX`, `TXT`, `NS`, `SRV`, and `CAA`.
+4. **Record**: The record for the DNS record. For example, `example.com`.
+5. **Value**: The value for the DNS record. For example, `127.1.3.4`.
+6. **Support Instructions**: The support instructions for the DNS record. This will be displayed on the software details page.
+
+Now, click on `Create` to add the software to your device.
+
+<br/>
+🎉 Congratulations! You have successfully added a new software.
