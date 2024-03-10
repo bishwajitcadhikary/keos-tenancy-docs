@@ -1,0 +1,17 @@
+import Image from "next/image";
+
+# Database Upgrade
+
+Welcome to the software upgrade feature for your database. With this tool, you can easily update your database to the latest version. Once you initiate a new query, it will be executed across all the websites you've selected on the upgrade page.
+
+Furthermore, whenever a new website is created, the latest version of the database will be automatically executed. This way, you can ensure that all your websites are always up-to-date.
+
+## How to use
+
+To use this feature, simply click on the `+ New Upgrade` button on the upgrade page. This will take you to the database upgrade page, where you can initiate a new query. Once you do, the query will be executed across all your websites, and the database will be updated to the latest version.
+
+* Insert your SQL query in the `Query` field.
+* Insert a rollback query in the `Rollback Query` field. This query will be executed if the upgrade fails.
+* Click on the `Upgrade` button to initiate the upgrade.
+
+<Image src={"/images/database_upgrade/1.png"} width={500} height={500} className={"bg-img"}/>

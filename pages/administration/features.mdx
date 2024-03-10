@@ -1,0 +1,58 @@
+import Image from "next/image";
+import { Callout } from 'nextra-theme-docs'
+
+# Features
+
+If you want to limit software usage to a specific set of features, you can use the `features` parameter. The software will only be usable if the plan contains all the features in the `features` parameter.
+
+### Step 1: Create a feature
+    * Go to the `Software` tab and create a software.
+    * Come back to the `Features` tab and click on `+` icon to create a new feature.
+    * Fill in the form and click on `Save`.
+
+<Image src={"/images/features/1.png"} width={5000} height={500} className={"bg-img"}/>
+
+<Callout emoji="💁‍♀️">
+    For example, we have created a feature called `product-limit` with a value of `50` in the [Plans](/administration/plans) section.
+</Callout>
+
+### Step 2: Limit software usage to a specific set of features
+    * Open your software script in your favorite code editor.
+
+    **Laravel:**
+    For example, we have a `Product` model and a `ProductController` to create a product. We have to limit the product creation based on the product-limit feature.
+    ```php
+    <?php
+
+    namespace App\Http\Controllers;
+
+    use App\Models\Product;
+    use App\Models\Saas\Feature;
+    use App\Http\Requests\StoreProductRequest;
+    use App\Http\Controllers\Controller;
+
+    class ProductController extends Controller
+    {
+        // ...other methods
+        public function store(StoreProductRequest $request)
+        {
+            // We have to limit the product creation based on the product-limit feature.
+            $feature = Feature::whereSlug('product-limit')->first();
+
+            if ($feature->hasAccess()) {
+                // Check if the exceded the product limit
+                if (Product::count() < $feature->value) {
+                    $product = Product::create($request->validated());
+
+                    return redirect()->route('products.index')->with('success', 'Product created successfully.');
+                } else {
+                    return redirect()->route('products.index')->with('error', 'You have exceeded the product limit.');
+                }
+            } else {
+                return redirect()->route('products.index')->with('error', 'You do not have access to create a product.');
+            }
+        }
+
+        // ...other methods
+    }
+    ```

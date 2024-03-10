@@ -1,6 +1,324 @@
+import { Callout } from 'nextra-theme-docs'
+
 # Software
 
-Here you can manage the software installed on your device. You can install new software, update existing software, and remove software that you no longer need.
+Here you can manage the software installed on your server. You can install new software, update existing software, and remove software that you no longer need.
+
+## Prepare Software Script
+* Open the project to your favorite code editor.
+* I will give you a simple example of how to fetch the database credentials from `WovoSaas` and use them in your software script.
+
+### Laravel:
+* Create a new service provider by running the following command:
+```bash copy
+php artisan make:provider WovoSaasServiceProvider
+```
+* Open the `WovoSaasServiceProvider` and add the following code:
+```php filename="app/Providers/WovoSaasServiceProvider.php" copy
+<?php
+
+namespace App\Providers;
+
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\DB;
+
+class WovoSaasServiceProvider extends ServiceProvider
+{
+    /**
+     * Bootstrap any application services.
+     *
+     * @return void
+     */
+    public function boot()
+    {
+        $domain = $this->getDomain();
+
+        $website = $this->getWebsite($domain);
+
+        if (empty($website)) {
+            $this->handleEmptyWebsite();
+        }
+
+        $credential = json_decode($website->credentials);
+
+        $this->setConfigurations($website, $credential);
+
+        $this->checkDatabaseConnection();
+    }
+
+    protected function getDomain()
+    {
+        return $this->app->runningInConsole() ? config('app.url') : $_SERVER['HTTP_HOST'];
+    }
+
+    protected function getWebsite($domain)
+    {
+        return Cache::remember('wovosaas.' . $domain, 300, function () use ($domain) {
+            return DB::connection('wovosaas')
+                ->table('websites')
+                ->leftJoin('domains', 'websites.id', '=', 'domains.website_id')
+                ->leftJoin('subscriptions', 'websites.id', '=', 'subscriptions.website_id')
+                ->where([
+                    'websites.status' => 'active',
+                    'websites.database_created' => 1,
+                    'websites.deleted_at' => null,
+                    'domains.is_active' => 1,
+                    'domains.domain' => $domain,
+                ])
+                ->select([
+                    'websites.id',
+                    'websites.name',
+                    'websites.credentials',
+                    'websites.database',
+                    'domains.domain as domain',
+                    'subscriptions.ends_at',
+                ])
+                ->first();
+        });
+    }
+
+    protected function handleEmptyWebsite()
+    {
+        die('Please contact with website provider');
+    }
+
+    protected function setConfigurations($website, $credential)
+    {
+        Config::set([
+            'app.url' => 'https://' . $website->domain,
+            'app.name' => 'https://' . $website->name,
+            'database.connections.mysql.database' => $website->database,
+            'database.connections.mysql.host' => $credential->host,
+            'database.connections.mysql.username' => $credential->username,
+            'database.connections.mysql.password' => $credential->password,
+        ]);
+    }
+
+    protected function checkDatabaseConnection()
+    {
+        try {
+            DB::connection('wovosaas')->getPdo();
+        } catch (\Exception $e) {
+            Cache::forget('wovosaas.' . $domain);
+            die('Database Connection Failed, Please contact with website provider.');
+        }
+    }
+}
+```
+* Open the `config/database.php` and add the following code:
+```php filename="config/database.php" copy
+'wovosaas' => [
+    'driver' => 'mysql',
+    'url' => '',
+    'host' => env('WOVOSAAS_HOST', '127.0.0.1'),
+    'port' => env('WOVOSAAS_PORT', '3306'),
+    'database' => env('WOVOSAAS_DATABASE', 'forge'),
+    'username' => env('WOVOSAAS_USERNAME', 'forge'),
+    'password' => env('WOVOSAAS_PASSWORD', ''),
+    'unix_socket' => env('WOVOSAAS_SOCKET', ''),
+    'charset' => 'utf8mb4',
+    'collation' => 'utf8mb4_unicode_ci',
+    'prefix' => '',
+    'prefix_indexes' => true,
+    'strict' => true,
+    'engine' => null,
+    'options' => extension_loaded('pdo_mysql') ? array_filter([
+        PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
+    ]) : [],
+],
+```
+
+* Open the `.env` and add the following code:
+```env filename=".env" copy
+WOVOSAAS_HOST=127.0.0.1
+WOVOSAAS_PORT=3306
+WOVOSAAS_DATABASE=wovosaas
+WOVOSAAS_USERNAME=root
+WOVOSAAS_PASSWORD=*password*
+```
+
+### CodeIgniter:
+* Open the `application/config/database.php` and add the following code:
+
+```php filename="application/config/database.php" copy
+<?php
+defined('BASEPATH') OR exit('No direct script access allowed');
+
+$active_group = 'default';
+$query_builder = TRUE;
+
+$mainDatabaseConfig = [
+    'host' => 'localhost',
+    'username' => 'root',
+    'password' => '*********',
+    'database' => 'wovosaas'
+];
+
+$saasDatabaseConfig = null;
+
+try {
+    $conn = new PDO("mysql:host={$mainDatabaseConfig['host']};dbname={$mainDatabaseConfig['database']}", $mainDatabaseConfig['username'], $mainDatabaseConfig['password']);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    $domain = str_replace(['www.'], '', $_SERVER['HTTP_HOST']);
+
+    $stmt = $conn->prepare('SELECT d.*, w.* FROM domains d LEFT JOIN websites w ON d.website_id = w.id WHERE d.domain = :domain AND d.is_active = 1 LIMIT 1');
+    $stmt->bindParam(':domain', $domain, PDO::PARAM_STR);
+    $stmt->execute();
+
+    $website = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($website && $credential = json_decode($website['credentials'])) {
+        $saasDatabaseConfig = [
+            'host' => $credential->host,
+            'username' => $credential->username,
+            'password' => $credential->password,
+            'database' => $website['database']
+        ];
+    } else {
+        die('Domain not found');
+    }
+} catch (PDOException $e) {
+    die('Database connection error: ' . $e->getMessage());
+}
+
+$db['default'] = array_merge([
+    'dsn' => '',
+    'dbdriver' => 'mysqli',
+    'dbprefix' => '',
+    'pconnect' => FALSE,
+    'db_debug' => TRUE,
+    'cache_on' => FALSE,
+    'cachedir' => '',
+    'char_set' => 'utf8',
+    'dbcollat' => 'utf8_general_ci',
+    'swap_pre' => '',
+    'encrypt' => FALSE,
+    'compress' => FALSE,
+    'stricton' => FALSE,
+    'failover' => array(),
+    'save_queries' => FALSE
+], $saasDatabaseConfig);
+?>
+```
+
+### PHP:
+* Open the `index.php` and add the following code:
+```php filename="index.php" copy
+<?php
+// Better to use the .env file to store the database credentials
+$mainDatabaseConfig = [
+    'host' => 'localhost',
+    'username' => 'root',
+    'password' => '*********',
+    'database' => 'wovosaas'
+];
+
+$saasDatabaseConfig = null;
+
+try {
+    $conn = new PDO("mysql:host={$mainDatabaseConfig['host']};dbname={$mainDatabaseConfig['database']}", $mainDatabaseConfig['username'], $mainDatabaseConfig['password']);
+    $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+    $domain = str_replace(['www.'], '', $_SERVER['HTTP_HOST']);
+
+    $stmt = $conn->prepare('SELECT d.*, w.* FROM domains d LEFT JOIN websites w ON d.website_id = w.id WHERE d.domain = :domain AND d.is_active = 1 LIMIT 1');
+    $stmt->bindParam(':domain', $domain, PDO::PARAM_STR);
+    $stmt->execute();
+
+    $website = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if ($website && $credential = json_decode($website['credentials'])) {
+        $saasDatabaseConfig = [
+            'host' => $credential->host,
+            'username' => $credential->username,
+            'password' => $credential->password,
+            'database' => $website['database']
+        ];
+    } else {
+        die('Domain not found');
+    }
+} catch (PDOException $e) {
+    die('Database connection error: ' . $e->getMessage());
+}
+
+$db = array_merge([
+    'host' => null',
+    'username' => null,
+    'password' => null,
+    'database' => null,
+    ... your other configurations
+], $saasDatabaseConfig);
+
+// Now, you can use the $db array to connect to the database
+
+```
+
+### Node.js:
+* Open the `app.js` and add the following code:
+<Callout emoji="💁‍♀️" type="info">
+    **Note:** This is just an example, just to give you an idea of how to fetch the database credentials from `WovoSaas` and use them in your software script.
+</Callout>
+
+```javascript filename="app.js" copy
+const express = require('express');
+const app = express();
+const mysql = require('mysql');
+
+const mainDatabaseConfig = {
+    host: 'localhost',
+    user: 'root',
+    password: '*********',
+    database: 'wovosaas'
+};
+
+const mainConnection = mysql.createConnection(mainDatabaseConfig);
+
+app.use((req, res, next) => {
+    const domain = req.headers.host.split(':')[0];
+
+    mainConnection.query('SELECT d.*, w.* FROM domains d LEFT JOIN websites w ON d.website_id = w.id WHERE d.domain = ? AND d.is_active = 1 LIMIT 1', [domain], (error, results, fields) => {
+        if (error) {
+            return res.send('Database connection error');
+        }
+
+        if (results.length) {
+            const website = results[0];
+            const credential = JSON.parse(website.credentials);
+
+            const saasDatabaseConfig = {
+                host: credential.host,
+                user: credential.username,
+                password: credential.password,
+                database: website.database
+            };
+
+            const saasConnection = mysql.createConnection(saasDatabaseConfig);
+
+            req.saasConnection = saasConnection;
+        }
+
+        next();
+    });
+});
+
+app.get('/', (req, res) => {
+    req.saasConnection.query('SELECT * FROM users', (error, results, fields) => {
+        if (error) {
+            return res.send('Database query error');
+        }
+
+        res.send(results);
+    });
+});
+
+app.listen(3000, () => {
+    console.log('Server is running on port 3000');
+});
+```
+
 
 ## Add Software
 
@@ -24,48 +342,46 @@ To add new software, go to the `Settings` tab next to the `Software` tab and cli
 8. **Demo URL**: The URL of the demo of the software. This will be displayed on the software details page.
 9. **Documentation URL**: The URL of the documentation of the software.
 
-#### Default Admin Credentials
+### Default Admin Credentials
 
-You can set the default admin credentials for the software. If you don't set the default admin credentials, you have to create an system to create the admin user.
-<br/>
+You have to enter the default admin credentials for the software. After a user creates a website, the software will email the user with the default admin credentials.
+
 For example, you have entered the following default admin credentials:
-| **Name**   |   **Value**  | **Replaceable** | **Type** |
-| :--------- | :----------- | :-------------- | :------- |
-| username   | admin        | REPLACE_USERNAME| string   |
-| password   | secret1234   | REPLACE_PASSWORD| hashed   |
-
-When you install the software, the `username` will be replaced with the username you entered and the `password` will be replaced with the password you entered.
-
-    MySQL:
-    ```sql
-    ... your other queries
-    INSERT INTO `users` (
-        `id`,
-        `name`,
-        `email`,
-        `username`,
-        `password`,
-        `email_verified_at`,
-        `remember_token`,
-        `created_at`,
-        `updated_at`
-    ) VALUES (
-        1,
-        'Admin',
-        'admin@mail.com',
-        'REPLACE_USERNAME',
-        'REPLACE_PASSWORD',
-        '2024-02-28 11:46:26',
-        NULL,
-        '2024-02-28 11:46:26',
-        '2024-02-28 11:46:26'
-    );
-    ... your other queries
-    ```
-This will create an admin user with the username `admin` and the password `secret1234`.
+| **Name**   |   **Value**   |
+| :--------- | :-----------  |
+| email      | admin@mail.com|
+| password   | password      |
 
 
-#### Cron Jobs
+MySQL:
+```sql filename="example.sql"
+... your other queries
+INSERT INTO `users` (
+    `id`,
+    `name`,
+    `email`,
+    `username`,
+    `password`,
+    `email_verified_at`,
+    `remember_token`,
+    `created_at`,
+    `updated_at`
+) VALUES (
+    1,
+    'Admin',
+    'admin@mail.com',
+    'admin',
+    '$2y$12$YMQQg6z3xMt.1hcVAzGb1OIXMMMhTLEkKO6s80WJUub2JEExDOeRa',
+    '2024-02-28 11:46:26',
+    NULL,
+    '2024-02-28 11:46:26',
+    '2024-02-28 11:46:26'
+);
+... your other queries
+```
+
+
+### Cron Jobs
 
 You can set the cron jobs for the software. Click on `+` to add a new cron job. You can set the following fields for the cron job:
 
@@ -76,17 +392,15 @@ You can set the cron jobs for the software. Click on `+` to add a new cron job. 
 5. **Type**: The type of the cron job. You can choose between `Command` and `cURL`.
 6. **Command**: The command to run for the cron job.
 
-    cURL: <br/>
-    You just have to enter the path of the cron file. For example, if you have a cron file at `https://example.com/cron.php`, you just have to enter `/cron.php`.
-    ```bash
-    /cron.php
-    ```
-
-    Command: <br/>
-    ```Coming soon...```
+cURL: <br/>
+You just have to enter the path of the cron file. For example, if you have a cron file at `https://example.com/cron.php`, you just have to enter `/cron.php`.
+```bash
+/cron.php
+```
 
 
-#### DNS Records
+
+### DNS Records
 
 You can set the DNS records for the software. Click on `+` to add a new DNS record. You can set the following fields for the DNS record:
 

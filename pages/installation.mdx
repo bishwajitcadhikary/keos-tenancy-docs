@@ -1,8 +1,7 @@
-import Image from "next/image";
+## Requirements
 
-# Requirements
 The Laravel framework has a few system requirements. You should ensure that your web server has the following minimum PHP version and extensions:
-* PHP >= 8.1
+* PHP >= 8.2
 * Ctype PHP Extension
 * cURL PHP Extension
 * DOM PHP Extension
@@ -24,7 +23,87 @@ The Laravel framework has a few system requirements. You should ensure that your
 
 ## Installation
 
-#### Video Tutorial
-<div className="bg-img">
-    <iframe width="100%" height="500" src="https://www.youtube.com/embed/JpqVBRZpMB0" title="How to install" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen="true"></iframe>
-</div>
+### Clone the repository
+This is a private repository, so you need to have access to it. If you have access, you can clone the repository using the following command:
+```sh copy
+git clone git@github.com:bishwajitcadhikary/wovosaas.git
+```
+
+### Install the dependencies
+After cloning the repository, you need to install the dependencies. You can do this by running the following command:
+```sh copy
+composer install
+```
+
+### Create a .env file
+You need to create a .env file in the root directory of the project. You can copy the .env.example file and rename it to .env. You can do this by running the following command:
+```sh copy
+cp .env.example .env
+```
+
+### Configure the .env file
+You need to configure the .env file. You will find other configurations in the .env file.
+```env copy
+HYPER_SWITCH_PUBLISHABLE_KEY=
+HYPER_SWITCH_API_KEY=
+HYPER_SWITCH_MERCHANT_ID=
+HYPER_SWITCH_ENVIRONMENT=production
+```
+
+### Generate the application key
+You need to generate the application key. You can do this by running the following command:
+```sh copy
+php artisan key:generate
+```
+
+### Run the migrations
+You need to run the migrations to create the database tables. You can do this by running the following command:
+```sh copy
+php artisan migrate
+```
+
+### Run the seeder
+You need to run the seeder to create the default user. You can do this by running the following command:
+```sh copy
+php artisan db:seed
+```
+
+### Install the NPM dependencies
+You need to install the NPM dependencies. You can do this by running the following command:
+```sh copy
+yarn
+```
+
+### Build the assets
+You need to build the assets. You can do this by running the following command:
+```sh copy
+yarn build
+```
+
+### Configure `supervisor` to run the queue
+You need to configure `supervisor` to run the queue. You can do this by running the following command:
+```text copy
+[program:horizon]
+process_name=%(program_name)s
+command=/path/to/php /path/to/artisan horizon
+autostart=true
+autorestart=true
+user=youruser
+redirect_stderr=true
+stdout_logfile=/path/to/your/logfile.log
+stopwaitsecs=3600
+```
+
+### Restart the `supervisor`
+You need to restart the `supervisor` to run the queue. You can do this by running the following command:
+```sh copy
+sudo supervisorctl reread
+sudo supervisorctl update
+sudo supervisorctl start horizon
+```
+
+### Configure the `cron` job
+You need to configure the `cron` job to run the schedule. You can do this by running the following command:
+```sh copy
+* * * * * cd /path-to-your-project && php artisan schedule:run >> /dev/null 2>&1
+```

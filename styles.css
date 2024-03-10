@@ -24,11 +24,6 @@ img {
     margin-left: 25px;
 }
 
-.bg-img iframe {
-    width: 100%;
-    border-radius: 10px;
-}
-
 .alert-warning {
     display: none;
 }
